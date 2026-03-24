@@ -1,0 +1,330 @@
+================================================================================
+CONFLUENCE PAGE — SCHEMA METADATA
+Core Banking Raw Zone | Customer, Account & Transaction Tables
+================================================================================
+Page owner    : Data Governance Team
+LOB           : Retail Banking
+Last updated  : 2026-03-24
+Status        : Active
+Confluence URL: https://confluence.bank.internal/display/DG/CoreBanking+RawSchema
+
+================================================================================
+1. OVERVIEW
+================================================================================
+This schema forms the raw (Bronze) ingestion layer for the three core retail
+banking entities — customer master, account master, and transaction events.
+Data originates from multiple source systems (FINACLE, FLEXCUBE, CRM_V2,
+UPI_GATEWAY, PAYMENTS_SWITCH, CARD_HOST) and is loaded daily via batch and
+near-real-time pipelines.
+
+These tables are the authoritative raw source for downstream Silver and Gold
+layer processing, regulatory reporting, and ML feature engineering.
+
+================================================================================
+2. TABLE: customer_raw
+================================================================================
+Description   : Raw customer master records ingested from CRM and MDM systems
+Zone          : Bronze (raw — immutable after load)
+Source systems: CRM_V2, CUSTOMER_HUB, MDM
+Row count     : ~4.2 million (sample: 20 rows)
+Columns       : 112
+Refresh       : Daily batch — load_date = BATCH_20260324_001
+Source file   : customer_raw_20260324_part01.csv
+Primary key   : customer_id (format: CUST######)
+Foreign keys  : None at this layer
+
+  QUERY THIS TABLE
+  -------------------------------------------------------------------------
+  Hue (Prod)    : https://hue-prod.bank.internal/
+  Database      : raw_banking
+  Table         : customer_raw
+  Hue (UAT)     : https://hue-uat.bank.internal/
+  -------------------------------------------------------------------------
+
+  ENTITLEMENTS REQUIRED
+  -------------------------------------------------------------------------
+  AD Group             | Access Level          | Request Via
+  -------------------------------------------------------------------------
+  DL-RAW-READ          | Read raw tables       | ServiceNow
+  DL-PII-APPROVED      | PII columns           | DSAR team approval
+  DL-KYC-READ          | KYC / AML fields      | Compliance team
+  DL-RAW-WRITE         | Write / load access   | Data Engineering
+  -------------------------------------------------------------------------
+  Note: Columns full_name, date_of_birth, email_primary, email_secondary,
+  mobile_phone, address_line1, tax_id_number, id_document_number require
+  DL-PII-APPROVED in addition to DL-RAW-READ.
+
+  KEY COLUMNS
+  -------------------------------------------------------------------------
+  customer_id           | VARCHAR | PK. Format: CUST######. Not null
+  party_id              | VARCHAR | Party system reference. Format: PTY######
+  cif_number            | VARCHAR | Core banking CIF. Format: CIF######
+  crm_customer_number   | VARCHAR | CRM system reference. Format: CRM######
+  first_name            | VARCHAR | PII — masked in non-prod
+  last_name             | VARCHAR | PII — masked in non-prod
+  full_name             | VARCHAR | PII — masked in non-prod
+  date_of_birth         | DATE    | PII. GDPR special category
+  gender                | VARCHAR | Values: FEMALE, MALE
+  marital_status        | VARCHAR | Values: SINGLE, MARRIED
+  nationality           | VARCHAR | Sample: Indian
+  email_primary         | VARCHAR | PII. Null%: 0%. Format validated
+  email_secondary       | VARCHAR | PII. Null%: 15%
+  mobile_phone          | VARCHAR | PII. Null%: 0%
+  home_phone            | VARCHAR | PII. Null%: 65%
+  customer_status       | VARCHAR | Values: ACTIVE, REVIEW, CLOSED
+  aml_risk_rating       | VARCHAR | Values: LOW, MEDIUM, HIGH
+  kyc_status            | VARCHAR | Values: COMPLETED, REFRESH_DUE, PENDING_REVIEW
+  pep_flag              | VARCHAR | Values: Y, N
+  sanctions_screening   | VARCHAR | Values: CLEAR, REVIEW_REQUIRED
+  risk_score            | INT     | Range: 18-37 in sample
+  segment_code          | VARCHAR | Values: RET, AFF, PRM, NRI, HNI
+  segment_name          | VARCHAR | Values: Retail, Affluent, Premier, NRI, HNI
+  residency_status      | VARCHAR | Values: RESIDENT, NON_RESIDENT
+  annual_income         | INT     | Range seen: 450000-1500000
+  net_worth             | DECIMAL | Range seen: 1575000-9000000
+  credit_score_band     | VARCHAR | Values: EXCELLENT, GOOD, FAIR, NEEDS_REVIEW
+  employment_status     | VARCHAR | Values: SALARIED, SELF_EMPLOYED, RETIRED
+  onboarding_channel    | VARCHAR | Values: BRANCH, MOBILE_APP, INTERNET_BANKING, RM_ASSISTED
+  source_system         | VARCHAR | Values: CRM_V2, CUSTOMER_HUB, MDM
+  row_quality_status    | VARCHAR | Values: VALID, INVALID
+  duplicate_suspect_flag| VARCHAR | Values: Y, N. Null%: 0%
+  record_hash           | VARCHAR | SHA1 hash for dedup and change detection
+  batch_id              | VARCHAR | Format: BATCH_YYYYMMDD_###
+  load_date             | DATE    | Partition key. Format: YYYY-MM-DD
+  -------------------------------------------------------------------------
+
+  KNOWN ISSUES
+  -------------------------------------------------------------------------
+  - guardian_customer_id: 100% null — applicable only for minor accounts
+  - entity_name, registration_number: 100% null — individual customers only
+  - name_suffix: 90% null — optional field
+  - home_phone: 65% null — not mandatory at onboarding
+  -------------------------------------------------------------------------
+
+================================================================================
+3. TABLE: account_raw
+================================================================================
+Description   : Raw account master records from core banking deposit systems
+Zone          : Bronze (raw — immutable after load)
+Source systems: DEPOSIT_SYSTEM, CORE_BANKING, FLEXCUBE, FINACLE
+Row count     : ~6.8 million (sample: 20 rows)
+Columns       : 113
+Refresh       : Daily batch — load_date = BATCH_20260324_001
+Source file   : account_raw_20260324_part01.csv
+Primary key   : account_id (format: ACC######)
+Foreign keys  : customer_id -> customer_raw.customer_id
+
+  QUERY THIS TABLE
+  -------------------------------------------------------------------------
+  Hue (Prod)    : https://hue-prod.bank.internal/
+  Database      : raw_banking
+  Table         : account_raw
+  Hue (UAT)     : https://hue-uat.bank.internal/
+  -------------------------------------------------------------------------
+
+  ENTITLEMENTS REQUIRED
+  -------------------------------------------------------------------------
+  AD Group             | Access Level          | Request Via
+  -------------------------------------------------------------------------
+  DL-RAW-READ          | Read raw tables       | ServiceNow
+  DL-FINANCE-READ      | Balance columns       | Finance team approval
+  DL-PCI-APPROVED      | PCI-DSS columns       | Compliance team
+  DL-FRAML-READ        | AML/KYC fields        | Risk team
+  DL-RAW-WRITE         | Write / load access   | Data Engineering
+  -------------------------------------------------------------------------
+  Note: available_balance, current_balance, ledger_balance, cleared_balance
+  require DL-PCI-APPROVED. Fields kyc_status, aml_risk_rating,
+  sanctions_screening_status require DL-FRAML-READ.
+
+  KEY COLUMNS
+  -------------------------------------------------------------------------
+  account_id            | VARCHAR | PK. Format: ACC######. Not null
+  customer_id           | VARCHAR | FK -> customer_raw.customer_id
+  primary_holder_cust_id| VARCHAR | Primary account holder reference
+  joint_holder_1_cust_id| VARCHAR | Null%: 80% — single holder accounts
+  cif_number            | VARCHAR | Core banking CIF reference
+  account_number        | BIGINT  | 12-digit account number
+  iban                  | VARCHAR | Format: IN##BANK############
+  account_type          | VARCHAR | Values: SAVINGS, CURRENT, LOAN
+  account_subtype       | VARCHAR | Values: RETAIL_SAVINGS, RETAIL_CURRENT, SALARY, NRE, NRO
+  account_currency      | VARCHAR | Values: INR, USD, GBP, EUR, AED
+  account_status        | VARCHAR | Values: ACTIVE, DORMANT, CLOSED, FROZEN
+  account_open_date     | DATE    | Date account was opened
+  account_close_date    | DATE    | Null%: 85% — open accounts
+  dormant_flag          | VARCHAR | Values: Y, N
+  freeze_flag           | VARCHAR | Values: Y, N
+  overdraft_allowed_flag| VARCHAR | Values: Y, N
+  overdraft_limit       | DECIMAL | 0 for non-OD accounts
+  available_balance     | DECIMAL | PCI-DSS scope
+  current_balance       | DECIMAL | PCI-DSS scope
+  ledger_balance        | DECIMAL | PCI-DSS scope
+  cleared_balance       | DECIMAL | PCI-DSS scope
+  interest_rate         | DECIMAL | Range: 2.75-6.25 in sample
+  interest_rate_type    | VARCHAR | Values: FIXED, FLOATING
+  kyc_status            | VARCHAR | Values: COMPLETED, REFRESH_DUE, PENDING_REVIEW
+  aml_risk_rating       | VARCHAR | Values: LOW, MEDIUM, HIGH
+  sanctions_status      | VARCHAR | Values: CLEAR, REVIEW_REQUIRED
+  source_system         | VARCHAR | Values: DEPOSIT_SYSTEM, CORE_BANKING
+  migrated_from_system  | VARCHAR | Values: FINACLE, FLEXCUBE, TEMENOS
+  row_quality_status    | VARCHAR | Values: VALID, INVALID
+  record_hash           | VARCHAR | SHA1 hash for dedup and change detection
+  batch_id              | VARCHAR | Format: BATCH_YYYYMMDD_###
+  load_date             | DATE    | Partition key. Format: YYYY-MM-DD
+  -------------------------------------------------------------------------
+
+  KNOWN ISSUES
+  -------------------------------------------------------------------------
+  - joint_holder_2_customer_id: 100% null — no joint accounts with 3 holders
+  - account_close_date: 85% null — expected for active accounts
+  - lien_reason: 90% null — only populated when lien_flag = Y
+  - sweep_target_account_id: 85% null — sweep accounts only
+  -------------------------------------------------------------------------
+
+================================================================================
+4. TABLE: transaction_raw
+================================================================================
+Description   : Raw transaction events from all payment channels and systems
+Zone          : Bronze (raw — immutable after load)
+Source systems: UPI_GATEWAY, PAYMENTS_SWITCH, CARD_HOST, CORE_BANKING
+Row count     : ~120 million (sample: 20 rows)
+Columns       : 111
+Refresh       : Near real-time + daily batch reconciliation
+Source file   : transaction_raw_20260324_part01.csv
+Primary key   : transaction_id (format: TXN######)
+Foreign keys  : account_id -> account_raw.account_id
+                customer_id -> customer_raw.customer_id
+
+  QUERY THIS TABLE
+  -------------------------------------------------------------------------
+  Hue (Prod)    : https://hue-prod.bank.internal/
+  Database      : raw_banking
+  Table         : transaction_raw
+  Hue (UAT)     : https://hue-uat.bank.internal/
+  -------------------------------------------------------------------------
+
+  ENTITLEMENTS REQUIRED
+  -------------------------------------------------------------------------
+  AD Group             | Access Level          | Request Via
+  -------------------------------------------------------------------------
+  DL-RAW-READ          | Read raw tables       | ServiceNow
+  DL-PCI-APPROVED      | Amount / card fields  | Compliance team
+  DL-FRAML-READ        | Fraud / AML fields    | Risk team
+  DL-RAW-WRITE         | Write / load access   | Data Engineering
+  -------------------------------------------------------------------------
+  Note: transaction_amount, billed_amount, card_pan_masked require
+  DL-PCI-APPROVED. Fields fraud_alert_flag, fraud_score,
+  aml_scenario_hit_flag require DL-FRAML-READ.
+
+  KEY COLUMNS
+  -------------------------------------------------------------------------
+  transaction_id        | VARCHAR | PK. Format: TXN######. Not null
+  account_id            | VARCHAR | FK -> account_raw.account_id
+  customer_id           | VARCHAR | FK -> customer_raw.customer_id
+  card_id               | VARCHAR | Null%: 20% — non-card transactions
+  transaction_date      | DATE    | Date of transaction
+  transaction_timestamp | DATETIME| Full timestamp with seconds
+  timezone              | VARCHAR | Sample: Asia/Kolkata
+  transaction_type      | VARCHAR | Values: CARD_PURCHASE, UPI_TRANSFER,
+                        |         | SALARY_CREDIT, ATM_WITHDRAWAL,
+                        |         | NEFT_TRANSFER, RTGS_TRANSFER,
+                        |         | IMPS_TRANSFER, CHEQUE_DEPOSIT,
+                        |         | INTEREST_CREDIT, FEE_DEBIT, REVERSAL
+  transaction_subtype   | VARCHAR | Values: POS, P2P, SALARY, ATM, etc
+  dr_cr_indicator       | VARCHAR | Values: D (Debit), C (Credit)
+  transaction_amount    | DECIMAL | PCI-DSS scope. Negative = debit
+  transaction_currency  | VARCHAR | Values: INR, USD, GBP, EUR
+  fx_rate               | DECIMAL | 1.0 for domestic INR transactions
+  fee_amount            | DECIMAL | Transaction fee charged
+  running_balance_after | DECIMAL | Account balance post transaction
+  merchant_name         | VARCHAR | Null%: 30% — non-merchant transactions
+  merchant_category_code| INT     | MCC code. Null%: 30%
+  channel_code          | VARCHAR | Values: MOB, UPI, BRN, ATM, IB, POS
+  channel_name          | VARCHAR | Values: Mobile Banking, UPI, Branch, ATM
+  fraud_alert_flag      | VARCHAR | Values: Y, N
+  fraud_score           | INT     | Range: 5-24 in sample
+  aml_scenario_hit_flag | VARCHAR | Values: Y, N
+  sanctions_status      | VARCHAR | Values: CLEAR, REVIEW_REQUIRED
+  txn_status            | VARCHAR | Values: POSTED, PENDING, FAILED, REVERSED
+  reconciliation_status | VARCHAR | Values: MATCHED, PENDING, UNMATCHED
+  source_system         | VARCHAR | Values: UPI_GATEWAY, PAYMENTS_SWITCH,
+                        |         | CARD_HOST, CORE_BANKING
+  row_quality_status    | VARCHAR | Values: VALID, INVALID
+  record_hash           | VARCHAR | SHA1 hash for dedup and change detection
+  batch_id              | VARCHAR | Format: BATCH_YYYYMMDD_###
+  load_date             | DATE    | Partition key. Format: YYYY-MM-DD
+  -------------------------------------------------------------------------
+
+  KNOWN ISSUES
+  -------------------------------------------------------------------------
+  - merchant_reference: 30% null — non-merchant payment transactions
+  - merchant_name / MCC: 30% null — transfers and salary credits have no merchant
+  - card_id: 20% null — non-card channels (UPI, NEFT, branch)
+  - atm_id / atm_location: 85% null — ATM transactions only
+  - cheque_number: 85% null — cheque transactions only
+  - dispute_case_id: 95% null — only disputed transactions
+  -------------------------------------------------------------------------
+
+================================================================================
+5. RELATIONSHIPS
+================================================================================
+customer_raw (1) ---- (many) account_raw     [join: customer_id]
+account_raw  (1) ---- (many) transaction_raw [join: account_id]
+customer_raw (1) ---- (many) transaction_raw [join: customer_id]
+
+================================================================================
+6. LINEAGE
+================================================================================
+customer_raw   : CRM_V2 / MDM -> customer_raw (Bronze)
+                 -> customer_silver (Silver — cleansed, PII masked)
+                 -> customer_360_gold (Gold — 360 view with all products)
+
+account_raw    : DEPOSIT_SYSTEM / CORE_BANKING -> account_raw (Bronze)
+                 -> account_silver (Silver — normalised, validated)
+                 -> account_summary_gold (Gold — balance aggregates)
+                 -> total_assets_gold (Gold — regulatory capital)
+
+transaction_raw: UPI_GATEWAY / PAYMENTS_SWITCH / CARD_HOST -> transaction_raw (Bronze)
+                 -> transaction_silver (Silver — enriched, reconciled)
+                 -> txn_daily_gold (Gold — daily aggregates)
+                 -> framl_feature_store (Gold — fraud & AML features)
+
+================================================================================
+7. DATA QUALITY RULES
+================================================================================
+customer_raw:
+  - customer_id null check: MANDATORY — reject if null
+  - email_primary format validation: WARN if not valid email format
+  - date_of_birth range check: WARN if DOB > today or < 1900-01-01
+  - duplicate_suspect_flag: flag for manual review
+
+account_raw:
+  - account_id null check: MANDATORY — reject if null
+  - customer_id FK validation: WARN if no matching customer_raw record
+  - available_balance null check: WARN
+  - account_status value check: reject if not in allowed list
+
+transaction_raw:
+  - transaction_id null check: MANDATORY — reject if null
+  - account_id FK validation: WARN if no matching account_raw record
+  - transaction_amount zero check: WARN if amount = 0
+  - transaction_date future check: WARN if date > today
+
+================================================================================
+8. HOW TO REQUEST ACCESS
+================================================================================
+Step 1 : Raise a ServiceNow request at snow.bank.internal
+Step 2 : Select category — Data Access Request
+Step 3 : Specify the AD group required from the entitlements table above
+Step 4 : Get approval from your line manager
+Step 5 : Data Governance team approves within 2 business days
+Step 6 : Access provisioned — log into Hue Prod to verify
+
+================================================================================
+9. CHANGE LOG
+================================================================================
+2026-03-24 : Initial load — BATCH_20260324_001. 20 sample rows per table
+2026-03-24 : schema_version v1.7 deployed for transaction_raw
+2026-03-10 : Added record_hash column to all three tables for dedup
+2026-01-15 : migrated_from_system column added to account_raw
+
+================================================================================

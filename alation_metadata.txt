@@ -1,0 +1,204 @@
+================================================================================
+ALATION METADATA EXPORT
+Core Banking Raw Zone | Customer, Account & Transaction
+================================================================================
+Generated     : 2026-03-24
+Source        : Alation Data Catalog (read-only export)
+Environment   : Production
+Catalog URL   : https://alation.bank.internal/
+
+================================================================================
+DATASET: raw_banking.customer_raw
+================================================================================
+Alation ID        : DS-20001
+Certified         : Yes
+Certified by      : Data Governance Team
+Certification date: 2026-01-01
+Trust score       : 97%
+Steward           : Ana Smith (Retail Data)
+Popularity rank   : 1 (most queried in Retail LOB)
+Last profiled     : 2026-03-24
+Queries (30 days) : 186
+Top consumers     : Risk Analytics, Compliance Team, Retail BI
+
+Column profiling (from sample of 20 rows):
+  customer_id            | distinct:20   | null%:0%    | format: CUST######
+  party_id               | distinct:20   | null%:0%    | format: PTY######
+  cif_number             | distinct:20   | null%:0%    | format: CIF######
+  full_name              | distinct:20   | null%:0%    | PII — masked non-prod
+  date_of_birth          | distinct:20   | null%:0%    | range: 1965-01-01 to 1984-12-20
+  gender                 | distinct:2    | null%:0%    | FEMALE, MALE
+  marital_status         | distinct:2    | null%:0%    | SINGLE, MARRIED
+  email_primary          | distinct:20   | null%:0%    | PII — format validated
+  email_secondary        | distinct:17   | null%:15%   | PII
+  mobile_phone           | distinct:20   | null%:0%    | PII
+  home_phone             | distinct:7    | null%:65%   | PII — not mandatory
+  customer_status        | distinct:3    | null%:0%    | ACTIVE:75%, REVIEW:15%, CLOSED:10%
+  aml_risk_rating        | distinct:3    | null%:0%    | LOW:60%, MEDIUM:25%, HIGH:15%
+  kyc_status             | distinct:3    | null%:0%    | COMPLETED:65%, REFRESH_DUE:20%, PENDING_REVIEW:15%
+  pep_flag               | distinct:2    | null%:0%    | Y:15%, N:85%
+  sanctions_screening    | distinct:2    | null%:0%    | CLEAR:85%, REVIEW_REQUIRED:15%
+  risk_score             | distinct:20   | null%:0%    | min:18, max:37, avg:27
+  segment_code           | distinct:5    | null%:0%    | RET, AFF, PRM, NRI, HNI
+  annual_income          | distinct:20   | null%:0%    | min:450000, max:1500000
+  net_worth              | distinct:20   | null%:0%    | min:1575000, max:9000000
+  employment_status      | distinct:3    | null%:0%    | SALARIED:60%, SELF_EMPLOYED:25%, RETIRED:15%
+  credit_score_band      | distinct:4    | null%:0%    | EXCELLENT, GOOD, FAIR, NEEDS_REVIEW
+  source_system          | distinct:3    | null%:0%    | CRM_V2, CUSTOMER_HUB, MDM
+  row_quality_status     | distinct:2    | null%:0%    | VALID:90%, INVALID:10%
+  duplicate_suspect_flag | distinct:2    | null%:0%    | Y:5%, N:95%
+  record_hash            | distinct:20   | null%:0%    | SHA1 — unique per row
+  batch_id               | distinct:1    | null%:0%    | BATCH_20260324_001
+  load_date              | distinct:1    | null%:0%    | 2026-03-24
+
+Lineage (Alation tracked):
+  Upstream:
+    CRM_V2.customer_master      -> customer_raw (daily batch, 01:00 IST)
+    CUSTOMER_HUB.party_profile  -> customer_raw (daily batch, 01:30 IST)
+    MDM.golden_customer         -> customer_raw (daily batch, 02:00 IST)
+  Downstream:
+    customer_raw -> customer_silver        (cleanse, PII mask, DQ checks)
+    customer_raw -> kyc_verified_silver    (KYC enrichment pipeline)
+    customer_raw -> customer_360_gold      (360 view aggregation)
+    customer_raw -> framl_feature_store    (fraud & AML feature engineering)
+    customer_raw -> regulatory_reports     (BCBS 239, KYC reporting)
+
+DQ results (last 7 days):
+  2026-03-24 | customer_id null check          | PASSED | 0 failures
+  2026-03-24 | email_primary format validation | PASSED | 0 failures
+  2026-03-24 | date_of_birth range check       | PASSED | 0 failures
+  2026-03-24 | duplicate_suspect_flag review   | WARNING | 1 record flagged
+  2026-03-23 | customer_id null check          | PASSED | 0 failures
+  2026-03-23 | email_primary format validation | WARNING | 3 records failed format
+
+================================================================================
+DATASET: raw_banking.account_raw
+================================================================================
+Alation ID        : DS-20002
+Certified         : Yes
+Certified by      : Data Governance Team
+Certification date: 2026-01-01
+Trust score       : 95%
+Steward           : Ben Torres (Finance Data)
+Popularity rank   : 2
+Last profiled     : 2026-03-24
+Queries (30 days) : 142
+Top consumers     : Finance Team, Risk Analytics, Compliance
+
+Column profiling (from sample of 20 rows):
+  account_id             | distinct:20   | null%:0%    | format: ACC######
+  customer_id            | distinct:20   | null%:0%    | FK -> customer_raw
+  cif_number             | distinct:20   | null%:0%    | format: CIF######
+  account_number         | distinct:20   | null%:0%    | 12-digit numeric
+  iban                   | distinct:20   | null%:0%    | format: IN##BANK############
+  account_type           | distinct:3    | null%:0%    | SAVINGS:55%, CURRENT:30%, LOAN:15%
+  account_subtype        | distinct:5    | null%:0%    | RETAIL_SAVINGS, RETAIL_CURRENT, SALARY, NRE, NRO
+  account_currency       | distinct:4    | null%:0%    | INR:80%, USD:8%, GBP:7%, EUR:5%
+  account_status         | distinct:4    | null%:0%    | ACTIVE:65%, DORMANT:15%, CLOSED:15%, FROZEN:5%
+  account_open_date      | distinct:20   | null%:0%    | range: 2014-04-18 to 2023-12-15
+  account_close_date     | distinct:3    | null%:85%   | null = open account
+  dormant_flag           | distinct:2    | null%:0%    | Y:15%, N:85%
+  available_balance      | distinct:20   | null%:0%    | PCI-DSS. min:0, max:245000
+  current_balance        | distinct:20   | null%:0%    | PCI-DSS
+  ledger_balance         | distinct:20   | null%:0%    | PCI-DSS
+  interest_rate          | distinct:5    | null%:0%    | min:2.75, max:6.25
+  interest_rate_type     | distinct:2    | null%:0%    | FIXED:60%, FLOATING:40%
+  kyc_status             | distinct:3    | null%:0%    | COMPLETED:65%, REFRESH_DUE:20%, PENDING_REVIEW:15%
+  aml_risk_rating        | distinct:3    | null%:0%    | LOW:60%, MEDIUM:25%, HIGH:15%
+  sanctions_status       | distinct:2    | null%:0%    | CLEAR:85%, REVIEW_REQUIRED:15%
+  source_system          | distinct:2    | null%:0%    | DEPOSIT_SYSTEM, CORE_BANKING
+  migrated_from_system   | distinct:3    | null%:0%    | FINACLE:40%, FLEXCUBE:40%, TEMENOS:20%
+  row_quality_status     | distinct:2    | null%:0%    | VALID:90%, INVALID:10%
+  record_hash            | distinct:20   | null%:0%    | SHA1 — unique per row
+  batch_id               | distinct:1    | null%:0%    | BATCH_20260324_001
+  load_date              | distinct:1    | null%:0%    | 2026-03-24
+
+Lineage (Alation tracked):
+  Upstream:
+    DEPOSIT_SYSTEM.account_master -> account_raw (daily batch, 01:00 IST)
+    CORE_BANKING.account_profile  -> account_raw (daily batch, 01:30 IST)
+    FLEXCUBE.casa_master          -> account_raw (daily batch, 02:00 IST)
+  Downstream:
+    account_raw -> account_silver          (normalise, validate, enrich)
+    account_raw -> account_summary_gold    (balance aggregates per customer)
+    account_raw -> total_assets_gold       (total assets for regulatory capital)
+    account_raw -> nim_gold                (net interest margin calculation)
+    account_raw -> framl_feature_store     (account behaviour features)
+
+DQ results (last 7 days):
+  2026-03-24 | account_id null check           | PASSED | 0 failures
+  2026-03-24 | customer_id FK validation       | PASSED | 0 failures
+  2026-03-24 | available_balance null check    | PASSED | 0 failures
+  2026-03-24 | account_status value check      | PASSED | 0 failures
+  2026-03-23 | account_id null check           | PASSED | 0 failures
+  2026-03-22 | customer_id FK validation       | WARNING | 12 orphan records — under investigation
+
+================================================================================
+DATASET: raw_banking.transaction_raw
+================================================================================
+Alation ID        : DS-20003
+Certified         : Yes
+Certified by      : Data Engineering Team
+Certification date: 2025-12-01
+Trust score       : 93%
+Steward           : Priya Nair (Payments Data)
+Popularity rank   : 3
+Last profiled     : 2026-03-24
+Queries (30 days) : 98
+Top consumers     : FRAML Team, Finance Team, Risk Analytics
+
+Column profiling (from sample of 20 rows):
+  transaction_id         | distinct:20   | null%:0%    | format: TXN######
+  account_id             | distinct:20   | null%:0%    | FK -> account_raw
+  customer_id            | distinct:20   | null%:0%    | FK -> customer_raw
+  card_id                | distinct:16   | null%:20%   | null = non-card channel
+  transaction_date       | distinct:15   | null%:0%    | range: 2026-03-04 to 2026-03-23
+  transaction_timestamp  | distinct:20   | null%:0%    | full datetime with seconds
+  transaction_type       | distinct:11   | null%:0%    | CARD_PURCHASE, UPI_TRANSFER,
+                         |               |             | SALARY_CREDIT, ATM_WITHDRAWAL,
+                         |               |             | NEFT_TRANSFER, RTGS_TRANSFER,
+                         |               |             | IMPS_TRANSFER, CHEQUE_DEPOSIT,
+                         |               |             | INTEREST_CREDIT, FEE_DEBIT, REVERSAL
+  dr_cr_indicator        | distinct:2    | null%:0%    | D:60%, C:40%
+  transaction_amount     | distinct:20   | null%:0%    | PCI-DSS. min:187, max:500000
+  transaction_currency   | distinct:4    | null%:0%    | INR:85%, USD:5%, GBP:5%, EUR:5%
+  fee_amount             | distinct:9    | null%:0%    | 0 for non-fee transactions
+  merchant_name          | distinct:10   | null%:30%   | null = non-merchant (salary, transfer)
+  merchant_category_code | distinct:10   | null%:30%   | MCC codes
+  channel_code           | distinct:6    | null%:0%    | MOB, UPI, BRN, ATM, IB, POS
+  fraud_alert_flag       | distinct:2    | null%:0%    | Y:10%, N:90%
+  fraud_score            | distinct:20   | null%:0%    | min:5, max:24
+  aml_scenario_hit_flag  | distinct:2    | null%:0%    | Y:15%, N:85%
+  sanctions_status       | distinct:2    | null%:0%    | CLEAR:85%, REVIEW_REQUIRED:15%
+  txn_status             | distinct:4    | null%:0%    | POSTED:60%, PENDING:20%, FAILED:10%, REVERSED:10%
+  reconciliation_status  | distinct:3    | null%:0%    | MATCHED:50%, PENDING:35%, UNMATCHED:15%
+  source_system          | distinct:4    | null%:0%    | UPI_GATEWAY, PAYMENTS_SWITCH,
+                         |               |             | CARD_HOST, CORE_BANKING
+  schema_version         | distinct:1    | null%:0%    | v1.7
+  row_quality_status     | distinct:2    | null%:0%    | VALID:90%, INVALID:10%
+  record_hash            | distinct:20   | null%:0%    | SHA1 — unique per row
+  batch_id               | distinct:1    | null%:0%    | BATCH_20260324_001
+  load_date              | distinct:1    | null%:0%    | 2026-03-24
+
+Lineage (Alation tracked):
+  Upstream:
+    UPI_GATEWAY.upi_events          -> transaction_raw (near real-time)
+    PAYMENTS_SWITCH.payment_events  -> transaction_raw (near real-time)
+    CARD_HOST.card_events           -> transaction_raw (near real-time)
+    CORE_BANKING.txn_journal        -> transaction_raw (daily batch, 03:00 IST)
+  Downstream:
+    transaction_raw -> transaction_silver      (enrich, reconcile, DQ)
+    transaction_raw -> txn_daily_gold          (daily aggregates per account)
+    transaction_raw -> framl_feature_store     (fraud & AML ML features)
+    transaction_raw -> fraud_alerts_gold       (real-time fraud signals)
+    transaction_raw -> regulatory_reports      (transaction monitoring reports)
+
+DQ results (last 7 days):
+  2026-03-24 | transaction_id null check       | PASSED | 0 failures
+  2026-03-24 | account_id FK validation        | PASSED | 0 failures
+  2026-03-24 | transaction_amount zero check   | PASSED | 0 failures
+  2026-03-24 | transaction_date future check   | PASSED | 0 failures
+  2026-03-23 | aml_scenario_hit_flag review    | WARNING | 3 high-risk transactions flagged for review
+  2026-03-22 | reconciliation_status check     | WARNING | 15% unmatched — escalated to settlements team
+
+================================================================================
