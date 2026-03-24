@@ -1,0 +1,2 @@
+# DataDiscoverPlatform
+GenAI use case 
